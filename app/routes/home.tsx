@@ -23,16 +23,29 @@ export async function loader() {
 }
 
 export async function action({ request }: Route.ActionArgs) {
-  // Esta función atrapa los datos del formulario cuando el usuario hace clic en "Agregar"
   const formData = await request.formData();
-  const nombre = formData.get("nombre");
+  const intent = formData.get("intent"); // Identificamos qué acción quiere hacer el usuario
 
-  if (typeof nombre === "string" && nombre.trim().length > 0) {
-    // Insertamos la nueva tarea en la base de datos local
-    const { error } = await supabase.from("tarea_test").insert([{ nombre, completada: false }]);
-    if (error) console.error("Error al guardar la tarea:", error);
+  // Si la intención es CREAR una tarea nueva
+  if (intent === "create") {
+    const nombre = formData.get("nombre");
+    if (typeof nombre === "string" && nombre.trim().length > 0) {
+      const { error } = await supabase.from("tarea_test").insert([{ nombre, completada: false }]);
+      if (error) console.error("Error al guardar la tarea:", error);
+    }
+  } 
+  // Si la intención es ACTUALIZAR (marcar completada/pendiente)
+  else if (intent === "toggle") {
+    const id = formData.get("id");
+    const completadaActual = formData.get("completada") === "true"; // Convertimos el texto a boolean
+    
+    if (id) {
+      // Actualizamos invirtiendo el valor actual de 'completada'
+      const { error } = await supabase.from("tarea_test").update({ completada: !completadaActual }).eq("id", id);
+      if (error) console.error("Error al actualizar la tarea:", error);
+    }
   }
-  return null; // React Router volverá a ejecutar el "loader" automáticamente para recargar la lista
+  return null;
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
@@ -43,6 +56,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <h1 className="text-3xl font-bold mb-6">Mis Tareas (Desde Supabase Local)</h1>
       
       <Form method="post" className="mb-8 flex gap-2 max-w-md">
+        <input type="hidden" name="intent" value="create" />
         <input
           type="text"
           name="nombre"
@@ -58,8 +72,20 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       {tareas && tareas.length > 0 ? (
         <ul className="list-disc pl-6 mb-12 text-lg space-y-2">
           {tareas.map((tarea: any) => (
-            <li key={tarea.id}>
-              {tarea.nombre} - {tarea.completada ? "✅ Completada" : "⏳ Pendiente"}
+            <li key={tarea.id} className="flex items-center gap-4 mb-2">
+              <span className={tarea.completada ? "line-through text-gray-500" : ""}>
+                {tarea.nombre} - {tarea.completada ? "✅ Completada" : "⏳ Pendiente"}
+              </span>
+              
+              {/* Formulario individual para cada tarea */}
+              <Form method="post">
+                <input type="hidden" name="intent" value="toggle" />
+                <input type="hidden" name="id" value={tarea.id} />
+                <input type="hidden" name="completada" value={tarea.completada?.toString()} />
+                <button type="submit" className="text-sm bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded text-black cursor-pointer">
+                  {tarea.completada ? "Deshacer" : "Completar"}
+                </button>
+              </Form>
             </li>
           ))}
         </ul>
