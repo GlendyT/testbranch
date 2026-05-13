@@ -10,7 +10,7 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
-export async function loader() {
+export async function clientLoader() {
   // Consultamos todos los registros de la nueva tabla 'tarea_test'
   const { data: tareas, error } = await supabase.from("tarea_test").select("*");
 
@@ -22,7 +22,7 @@ export async function loader() {
   return { tareas };
 }
 
-export async function action({ request }: Route.ActionArgs) {
+export async function clientAction({ request }: Route.ClientActionArgs) {
   const formData = await request.formData();
   const intent = formData.get("intent"); // Identificamos qué acción quiere hacer el usuario
 
